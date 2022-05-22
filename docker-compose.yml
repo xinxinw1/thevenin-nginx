@@ -1,20 +1,26 @@
 services:
-  webserver:
+  webserver-insecure:
     image: nginx
     ports:
       - 80:80
+    restart: unless-stopped
+    volumes:
+      - ./conf-insecure/:/etc/nginx/conf.d/:ro
+      - ./certbot/www/:/var/www/certbot/:ro
+  webserver-secure:
+    image: nginx
+    ports:
       - 443:443
     restart: unless-stopped
     volumes:
-      - ./conf/:/etc/nginx/conf.d/:ro
-      - ./certbot/www/:/var/www/certbot/:ro
+      - ./conf-secure/:/etc/nginx/conf.d/:ro
       - ./certbot/conf/:/etc/letsencrypt/:ro
   certbot:
     image: certbot/certbot
     volumes:
       - ./certbot/www/:/var/www/certbot/:rw
       - ./certbot/conf/:/etc/letsencrypt/:rw
-  xin-xin.me:
+  main-website:
     image: xinxinw/xin-xin.me
-    ports:
-      - 8081:8080
+    environment:
+      - PORT=80
