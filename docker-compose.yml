@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./conf-insecure/:/etc/nginx/conf.d/:ro
-      - ./certbot/www/:/var/www/certbot/:ro
+      - /mnt/thevenin_data/certbot/www/:/var/www/certbot/:ro
   webserver-secure:
     image: nginx
     ports:
@@ -14,12 +14,12 @@ services:
     restart: unless-stopped
     volumes:
       - ./conf-secure/:/etc/nginx/conf.d/:ro
-      - ./certbot/conf/:/etc/letsencrypt/:ro
+      - /mnt/thevenin_data/certbot/conf/:/etc/letsencrypt/:ro
   certbot:
     image: certbot/certbot
     volumes:
-      - ./certbot/www/:/var/www/certbot/:rw
-      - ./certbot/conf/:/etc/letsencrypt/:rw
+      - /mnt/thevenin_data/certbot/www/:/var/www/certbot/:rw
+      - /mnt/thevenin_data/certbot/conf/:/etc/letsencrypt/:rw
   main-website:
     image: xinxinw/xin-xin.me
     environment:
