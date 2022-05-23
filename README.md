@@ -7,6 +7,12 @@ $ docker compose pull
 $ docker compose up -d --remove-orphans
 ```
 
+## Stop server
+
+```
+$ docker compose down
+```
+
 ## Initialize certificate
 
 ```
