@@ -7,6 +7,12 @@ $ docker compose pull
 $ docker compose up -d --remove-orphans
 ```
 
+## Restart all services (update nginx config)
+
+```
+$ docker compose restart
+```
+
 ## Stop server
 
 ```
