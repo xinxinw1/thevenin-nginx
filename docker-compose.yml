@@ -23,8 +23,10 @@ services:
       - /mnt/thevenin_data/certbot/conf/:/etc/letsencrypt/:rw
   certbot-autorenew:
     <<: *certbot
+    restart: unless-stopped
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
   main-website:
     image: xinxinw/xin-xin.me
+    restart: unless-stopped
     environment:
       - PORT=80
