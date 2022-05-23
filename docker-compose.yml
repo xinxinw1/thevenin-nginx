@@ -31,5 +31,3 @@ services:
   main-website:
     image: xinxinw/xin-xin.me
     restart: unless-stopped
-    environment:
-      - PORT=80
