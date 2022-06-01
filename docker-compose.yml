@@ -36,3 +36,17 @@ services:
     restart: unless-stopped
     volumes:
       - ${DATA_DIR}/text-edit-data/:/var/www/html/data/:rw
+  mysql:
+    image: mysql
+    restart: unless-stopped
+    volumes:
+      - ${DATA_DIR}/mysql/data/:/var/lib/mysql/:rw
+    environment:
+      - MYSQL_ROOT_PASSWORD=initial-mysql-password
+  phpmyadmin:
+    image: phpmyadmin
+    restart: unless-stopped
+    links:
+      - mysql:db
+    environment:
+      - PMA_ABSOLUTE_URI=https://xin-xin.me/phpmyadmin/

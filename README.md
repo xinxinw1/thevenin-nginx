@@ -7,6 +7,10 @@ $ docker compose pull
 $ docker compose up -d --remove-orphans
 ```
 
+### First-time initialization
+
+Go to https://xin-xin.me/phpmyadmin, login as root and change the root password.
+
 ### Locally
 
 ```
