@@ -7,6 +7,12 @@ $ docker compose pull
 $ docker compose up -d --remove-orphans
 ```
 
+### Locally
+
+```
+$ docker compose up --env-file .env.dev -d --remove-orphans
+```
+
 ## Restart all services (update nginx config)
 
 ```
@@ -32,4 +38,13 @@ $ curl -s https://raw.githubusercontent.com/certbot/certbot/master/certbot/certb
 
 ```
 $ docker compose run --rm certbot renew
+```
+
+## Set up local env
+
+### Create certificate
+
+```
+$ sudo mkdir -p data/certbot/conf/live/new.xin-xin.me
+$ sudo openssl req -x509 -nodes -newkey rsa:4096 -days 1 -keyout data/certbot/conf/live/new.xin-xin.me/privkey.pem -out data/certbot/conf/live/new.xin-xin.me/fullchain.pem -subj '/CN=localhost'
 ```

@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./conf-insecure/:/etc/nginx/conf.d/:ro
-      - /mnt/thevenin_data/certbot/www/:/var/www/certbot/:ro
+      - ${DATA_DIR}/certbot/www/:/var/www/certbot/:ro
   webserver-secure:
     image: nginx
     ports:
@@ -14,13 +14,13 @@ services:
     restart: unless-stopped
     volumes:
       - ./conf-secure/:/etc/nginx/conf.d/:ro
-      - /mnt/thevenin_data/certbot/conf/:/etc/letsencrypt/:ro
+      - ${DATA_DIR}/certbot/conf/:/etc/letsencrypt/:ro
     command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
   certbot: &certbot
     image: certbot/certbot
     volumes:
-      - /mnt/thevenin_data/certbot/www/:/var/www/certbot/:rw
-      - /mnt/thevenin_data/certbot/conf/:/etc/letsencrypt/:rw
+      - ${DATA_DIR}/certbot/www/:/var/www/certbot/:rw
+      - ${DATA_DIR}/certbot/conf/:/etc/letsencrypt/:rw
     profiles:
       - donotstart
   certbot-autorenew:
@@ -31,3 +31,8 @@ services:
   main-website:
     image: xinxinw/xin-xin.me
     restart: unless-stopped
+  text-edit:
+    image: xinxinw/text-edit
+    restart: unless-stopped
+    volumes:
+      - ${DATA_DIR}/text-edit-data/:/var/www/html/data/:rw
