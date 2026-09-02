@@ -62,19 +62,38 @@ $ sudo cp data/certbot/conf/ssl-dhparams.pem /mnt/thevenin_data/certbot/conf/
 $ docker compose up -d
 ```
 
-With DNS for `new.xin-xin.me` pointing at this droplet, remove the placeholder
+With DNS for `new.xin-xin.me` pointing at this droplet, clear the placeholder
 and issue the real certificate:
 
 ```
 $ sudo rm -rf /mnt/thevenin_data/certbot/conf/live/new.xin-xin.me
-$ docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d new.xin-xin.me
+$ docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ --cert-name new.xin-xin.me -d new.xin-xin.me
 $ docker compose restart webserver-secure
 ```
 
-The `rm -rf` matters: certbot treats an existing `live/new.xin-xin.me/` as a
-lineage name that is already taken and issues into `live/new.xin-xin.me-0001/`
-instead, which nothing in `conf-secure/` references — so nginx would keep
-serving the placeholder with no obvious error.
+**Only run that `rm -rf` when no lineage exists yet** — that is, when
+`certbot/conf/renewal/new.xin-xin.me.conf` is absent and the only thing in
+`live/` is the self-signed placeholder. It is needed because certbot refuses to
+create a lineage over a non-empty live directory.
+
+If a renewal conf already exists, deleting `live/` is what *causes* a
+`new.xin-xin.me-0001` lineage. certbot picks the name from
+`renewal/<name>.conf`, not from `live/`: it opens that conf `O_EXCL` and falls
+back to `<name>-0001` when it already exists. With the live files gone certbot
+can no longer load the old lineage to recognise it as a duplicate, but the
+renewal conf still blocks reuse of the name — so it issues into `-0001`, which
+nothing in `conf-secure/` references, and nginx keeps serving the placeholder
+with no obvious error. `--cert-name` pins the name so this cannot happen
+silently.
+
+To remove a lineage, use certbot rather than deleting directories — it clears
+the renewal conf, archive and live directory together, and it is that asymmetry
+that causes the problem above:
+
+```
+$ docker compose run --rm certbot certificates
+$ docker compose run --rm certbot delete --cert-name new.xin-xin.me
+```
 
 `options-ssl-nginx.conf` and `ssl-dhparams.pem` come from this repo rather than
 from certbot's GitHub. Both are public certbot defaults, and copying them keeps
