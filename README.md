@@ -57,10 +57,8 @@ $ sudo openssl req -x509 -nodes -newkey rsa:4096 -days 365 \
     -keyout /mnt/thevenin_data/certbot/conf/live/new.xin-xin.me/privkey.pem \
     -out /mnt/thevenin_data/certbot/conf/live/new.xin-xin.me/fullchain.pem \
     -subj '/CN=new.xin-xin.me'
-$ curl -fsSL https://raw.githubusercontent.com/certbot/certbot/master/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf \
-    | sudo tee /mnt/thevenin_data/certbot/conf/options-ssl-nginx.conf
-$ curl -fsSL https://raw.githubusercontent.com/certbot/certbot/master/certbot/certbot/ssl-dhparams.pem \
-    | sudo tee /mnt/thevenin_data/certbot/conf/ssl-dhparams.pem
+$ sudo cp data/certbot/conf/options-ssl-nginx.conf /mnt/thevenin_data/certbot/conf/
+$ sudo cp data/certbot/conf/ssl-dhparams.pem /mnt/thevenin_data/certbot/conf/
 $ docker compose up -d
 ```
 
@@ -78,9 +76,12 @@ lineage name that is already taken and issues into `live/new.xin-xin.me-0001/`
 instead, which nothing in `conf-secure/` references — so nginx would keep
 serving the placeholder with no obvious error.
 
-Use `tee`, not `tee -a`, for the two config files. Appending on a re-run
-duplicates the nginx directives and concatenates a second PEM block onto
-`ssl-dhparams.pem`.
+`options-ssl-nginx.conf` and `ssl-dhparams.pem` come from this repo rather than
+from certbot's GitHub. Both are public certbot defaults, and copying them keeps
+a fresh droplet off the network for this step. They were fetched from
+`certbot/src/certbot/_internal/plugins/nginx/tls_configs/` and
+`certbot/src/certbot/` -- upstream has moved those paths at least once, so pin a
+release tag rather than a branch if you ever re-sync them.
 
 ### Manual renew
 
