@@ -47,48 +47,56 @@ $ docker compose down
 
 `conf-secure/` needs four files to exist before nginx will load its config: the
 certificate, the private key, `options-ssl-nginx.conf` and `ssl-dhparams.pem`.
-If any is missing, `webserver-secure` restart-loops. So seed a self-signed
-placeholder first and let the stack come up cleanly, then swap in the real
-certificate.
+If any is missing, `webserver-secure` restart-loops.
+
+On a fresh host the real certificate does not exist yet, so point nginx at a
+throwaway directory holding a self-signed placeholder. `CERT_DIR` controls only
+what `webserver-secure` mounts at `/etc/letsencrypt`; certbot always reads and
+writes the real `${DATA_DIR}/certbot/conf` tree, so issuance is unaffected.
 
 ```
-$ sudo mkdir -p /mnt/thevenin_data/certbot/conf/live/new.xin-xin.me
-$ sudo openssl req -x509 -nodes -newkey rsa:4096 -days 365 \
-    -keyout /mnt/thevenin_data/certbot/conf/live/new.xin-xin.me/privkey.pem \
-    -out /mnt/thevenin_data/certbot/conf/live/new.xin-xin.me/fullchain.pem \
+$ mkdir -p placeholder-certs/live/new.xin-xin.me
+$ openssl req -x509 -nodes -newkey rsa:4096 -days 365 \
+    -keyout placeholder-certs/live/new.xin-xin.me/privkey.pem \
+    -out placeholder-certs/live/new.xin-xin.me/fullchain.pem \
     -subj '/CN=new.xin-xin.me'
-$ sudo cp data/certbot/conf/options-ssl-nginx.conf /mnt/thevenin_data/certbot/conf/
-$ sudo cp data/certbot/conf/ssl-dhparams.pem /mnt/thevenin_data/certbot/conf/
+$ cp data/certbot/conf/options-ssl-nginx.conf data/certbot/conf/ssl-dhparams.pem placeholder-certs/
+$ sudo cp data/certbot/conf/options-ssl-nginx.conf data/certbot/conf/ssl-dhparams.pem /mnt/thevenin_data/certbot/conf/
+$ CERT_DIR=$PWD/placeholder-certs docker compose up -d
+```
+
+Both copies are needed: `conf-secure/` includes those two files from
+`/etc/letsencrypt/` whichever directory `CERT_DIR` points at, and certbot never
+writes them itself under `certonly --webroot`. So the real tree needs them for
+after the switch-back, and the placeholder tree needs them for right now.
+
+The whole stack now comes up on the first attempt, serving a browser trust
+warning on `:443` until the real certificate lands.
+
+With DNS for `new.xin-xin.me` pointing at this droplet, issue it and switch back
+to the real tree:
+
+```
+$ docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ --cert-name new.xin-xin.me -d new.xin-xin.me
 $ docker compose up -d
 ```
 
-With DNS for `new.xin-xin.me` pointing at this droplet, clear the placeholder
-and issue the real certificate:
+The second `up -d` is not a typo for `restart`: changing `CERT_DIR` changes a
+volume mount, and `docker compose restart` reuses the existing container with
+its original mounts. Only `up -d` recreates it. Dropping the override falls back
+to `CERT_DIR` from `.env`, which points at the real tree.
 
-```
-$ sudo rm -rf /mnt/thevenin_data/certbot/conf/live/new.xin-xin.me
-$ docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ --cert-name new.xin-xin.me -d new.xin-xin.me
-$ docker compose restart webserver-secure
-```
-
-**Only run that `rm -rf` when no lineage exists yet** — that is, when
-`certbot/conf/renewal/new.xin-xin.me.conf` is absent and the only thing in
-`live/` is the self-signed placeholder. It is needed because certbot refuses to
-create a lineage over a non-empty live directory.
-
-If a renewal conf already exists, deleting `live/` is what *causes* a
-`new.xin-xin.me-0001` lineage. certbot picks the name from
-`renewal/<name>.conf`, not from `live/`: it opens that conf `O_EXCL` and falls
-back to `<name>-0001` when it already exists. With the live files gone certbot
-can no longer load the old lineage to recognise it as a duplicate, but the
-renewal conf still blocks reuse of the name — so it issues into `-0001`, which
-nothing in `conf-secure/` references, and nginx keeps serving the placeholder
-with no obvious error. `--cert-name` pins the name so this cannot happen
-silently.
+Nothing is ever written into certbot's `live/` directory by hand. That matters:
+certbot derives a lineage name from `renewal/<name>.conf`, not from `live/`, so
+deleting `live/<name>/` while the renewal conf survives makes certbot unable to
+recognise the existing lineage but still unable to reuse its name — it then
+issues into `live/<name>-0001/`, which `conf-secure/` does not reference, and
+nginx serves the stale certificate with no obvious error. Keeping the
+placeholder in a separate directory removes that whole failure mode, and
+`--cert-name` pins the name regardless.
 
 To remove a lineage, use certbot rather than deleting directories — it clears
-the renewal conf, archive and live directory together, and it is that asymmetry
-that causes the problem above:
+the renewal conf, archive and live directory together:
 
 ```
 $ docker compose run --rm certbot certificates
@@ -110,9 +118,9 @@ $ docker compose run --rm certbot renew
 
 ## Set up local env
 
-`.env.dev` points `DATA_DIR` at `./data`, which already contains
-`options-ssl-nginx.conf` and `ssl-dhparams.pem`. The certificate and key are
-gitignored, so generate a self-signed pair:
+`.env.dev` points both `DATA_DIR` and `CERT_DIR` at `./data/certbot/conf`, which
+already contains `options-ssl-nginx.conf` and `ssl-dhparams.pem`. The
+certificate and key are gitignored, so generate a self-signed pair:
 
 ```
 $ sudo mkdir -p data/certbot/conf/live/new.xin-xin.me

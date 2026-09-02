@@ -10,3 +10,4 @@ data/certbot/conf/renewal
 data/certbot/www
 
 .env.secrets
+placeholder-certs/

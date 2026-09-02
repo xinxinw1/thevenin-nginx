@@ -14,7 +14,10 @@ services:
     restart: unless-stopped
     volumes:
       - ./conf-secure/:/etc/nginx/conf.d/:ro
-      - ${DATA_DIR}/certbot/conf/:/etc/letsencrypt/:ro
+      # Switchable so a fresh host can serve a self-signed placeholder from a
+      # throwaway directory while the real certificate is still being issued.
+      # certbot below always reads and writes the real ${DATA_DIR} tree.
+      - ${CERT_DIR}/:/etc/letsencrypt/:ro
     command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
   certbot: &certbot
     image: certbot/certbot
