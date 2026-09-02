@@ -1,2 +1,12 @@
 data/text-edit-data
 data/mysql
+
+# Certbot key material. options-ssl-nginx.conf and ssl-dhparams.pem are public
+# certbot defaults and stay committed so local dev works out of the box.
+data/certbot/conf/live
+data/certbot/conf/archive
+data/certbot/conf/keys
+data/certbot/conf/renewal
+data/certbot/www
+
+.env.secrets

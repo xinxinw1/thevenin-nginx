@@ -41,8 +41,10 @@ services:
     restart: unless-stopped
     volumes:
       - ${DATA_DIR}/mysql/data/:/var/lib/mysql/:rw
-    environment:
-      - MYSQL_ROOT_PASSWORD=initial-mysql-password
+    # Kept out of git; see .env.secrets.example. Only honored when the mysql
+    # data directory is empty, so an existing volume keeps its own password.
+    env_file:
+      - .env.secrets
   phpmyadmin:
     image: phpmyadmin
     restart: unless-stopped
