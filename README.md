@@ -47,48 +47,34 @@ $ docker compose down
 
 `conf-secure/` needs four files to exist before nginx will load its config: the
 certificate, the private key, `options-ssl-nginx.conf` and `ssl-dhparams.pem`.
-If any is missing, `webserver-secure` restart-loops. So seed a self-signed
-placeholder first and let the stack come up cleanly, then swap in the real
-certificate.
+The last two ship in this repo; copy them into the data directory, then bring
+the stack up and issue the certificate.
 
 ```
-$ sudo mkdir -p /mnt/thevenin_data/certbot/conf/live/new.xin-xin.me
-$ sudo openssl req -x509 -nodes -newkey rsa:4096 -days 365 \
-    -keyout /mnt/thevenin_data/certbot/conf/live/new.xin-xin.me/privkey.pem \
-    -out /mnt/thevenin_data/certbot/conf/live/new.xin-xin.me/fullchain.pem \
-    -subj '/CN=new.xin-xin.me'
-$ sudo cp data/certbot/conf/options-ssl-nginx.conf /mnt/thevenin_data/certbot/conf/
-$ sudo cp data/certbot/conf/ssl-dhparams.pem /mnt/thevenin_data/certbot/conf/
+$ sudo cp data/certbot/conf/options-ssl-nginx.conf data/certbot/conf/ssl-dhparams.pem /mnt/thevenin_data/certbot/conf/
 $ docker compose up -d
-```
-
-With DNS for `new.xin-xin.me` pointing at this droplet, clear the placeholder
-and issue the real certificate:
-
-```
-$ sudo rm -rf /mnt/thevenin_data/certbot/conf/live/new.xin-xin.me
 $ docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ --cert-name new.xin-xin.me -d new.xin-xin.me
 $ docker compose restart webserver-secure
 ```
 
-**Only run that `rm -rf` when no lineage exists yet** — that is, when
-`certbot/conf/renewal/new.xin-xin.me.conf` is absent and the only thing in
-`live/` is the self-signed placeholder. It is needed because certbot refuses to
-create a lineage over a non-empty live directory.
+Between the second and third commands `webserver-secure` restart-loops, because
+the certificate it references does not exist yet. That is expected and harmless:
+`webserver-insecure` on `:80` is what serves the ACME challenge, and
+`restart: unless-stopped` would bring the secure container up on its own even
+without the explicit `restart`. Nothing on `:443` works until issuance completes.
 
-If a renewal conf already exists, deleting `live/` is what *causes* a
-`new.xin-xin.me-0001` lineage. certbot picks the name from
-`renewal/<name>.conf`, not from `live/`: it opens that conf `O_EXCL` and falls
-back to `<name>-0001` when it already exists. With the live files gone certbot
-can no longer load the old lineage to recognise it as a duplicate, but the
-renewal conf still blocks reuse of the name — so it issues into `-0001`, which
-nothing in `conf-secure/` references, and nginx keeps serving the placeholder
-with no obvious error. `--cert-name` pins the name so this cannot happen
-silently.
+`--cert-name` pins the lineage name. Without it certbot derives the name from
+`renewal/<name>.conf` and falls back to `<name>-0001` if one already exists.
 
-To remove a lineage, use certbot rather than deleting directories — it clears
-the renewal conf, archive and live directory together, and it is that asymmetry
-that causes the problem above:
+**Do not clear `live/<name>/` by hand to "make room" for a new certificate.**
+certbot names a lineage from `renewal/<name>.conf`, not from `live/`. With the
+live files gone it can no longer load the old lineage to recognise it as a
+duplicate, but the renewal conf still blocks reuse of the name — so it issues
+into `live/<name>-0001/`, which `conf-secure/` does not reference, and nginx
+serves the stale certificate with no obvious error.
+
+To remove a lineage, use certbot, which clears the renewal conf, archive and
+live directory together:
 
 ```
 $ docker compose run --rm certbot certificates
@@ -111,10 +97,19 @@ $ docker compose run --rm certbot renew
 ## Set up local env
 
 `.env.dev` points `DATA_DIR` at `./data`, which already contains
-`options-ssl-nginx.conf` and `ssl-dhparams.pem`. The certificate and key are
-gitignored, so generate a self-signed pair:
+`options-ssl-nginx.conf` and `ssl-dhparams.pem` — two of the four files
+`conf-secure/` needs. The certificate and key are gitignored, so generate a
+self-signed pair once per checkout:
 
 ```
-$ sudo mkdir -p data/certbot/conf/live/new.xin-xin.me
-$ sudo openssl req -x509 -nodes -newkey rsa:4096 -days 365 -keyout data/certbot/conf/live/new.xin-xin.me/privkey.pem -out data/certbot/conf/live/new.xin-xin.me/fullchain.pem -subj '/CN=localhost'
+$ mkdir -p data/certbot/conf/live/new.xin-xin.me
+$ openssl req -x509 -nodes -newkey rsa:4096 -days 365 \
+    -keyout data/certbot/conf/live/new.xin-xin.me/privkey.pem \
+    -out data/certbot/conf/live/new.xin-xin.me/fullchain.pem \
+    -subj '/CN=localhost'
 ```
+
+Then `docker compose --env-file .env.dev up -d` brings `webserver-secure` up.
+Browsers will warn about the certificate, which is fine locally. Nothing
+generates this for you — production gets a real certificate from certbot, so the
+self-signed pair exists only for local dev.
