@@ -11,24 +11,25 @@ below are for day-to-day operation and for recovering by hand.
 Nothing in `templates-insecure/` or `templates-secure/` names a domain. Both
 directories are nginx *templates*: the nginx image renders
 `/etc/nginx/templates/*.template` into `/etc/nginx/conf.d` on every container
-start, substituting the `SITE_*` environment variables. So the same checkout
-serves `xin-xin.me`, `dev.xin-xin.me`, `xin-xin-dev.me` or `localhost` depending
-only on the env file it is started with.
+start, substituting environment variables. One variable drives all of it:
 
 | Variable | Meaning |
 | --- | --- |
-| `SITE_DOMAIN` | The domain this instance answers on. `server_name`, the `unsafe.` and `stage.` vhosts and phpmyadmin's absolute URI are all derived from it. |
-| `SITE_ALT_NAMES` | Extra names the main vhost also answers to, space separated. Optional. Spelled out in full, not derived from `SITE_DOMAIN`. |
-| `SITE_CERT_NAME` | The certbot lineage name, i.e. the directory under `certbot/conf/live` holding `fullchain.pem` and `privkey.pem`. Defaults to `SITE_DOMAIN`. |
+| `SITE_DOMAIN` | The single name this instance answers on. `server_name`, the `unsafe.` and `stage.` vhosts, the certbot lineage under `certbot/conf/live` and phpmyadmin's absolute URI are all derived from it. |
 
-`SITE_CERT_NAME` is separate from `SITE_DOMAIN` because a lineage is named once,
-when certbot first issues it, and renaming one means re-issuing it. Production
-still serves from a lineage named after the old `new.xin-xin.me` hostname, so
-`.env` pins it.
+So the same checkout serves `new.xin-xin.me`, `dev.xin-xin.me`, `xin-xin-dev.me`
+or `localhost` depending only on the env file it is started with. The main vhost
+answers on exactly that one name — no `www.` alias, no second spelling — and
+anything else reaching the droplet falls through to `default.conf` and is
+dropped with a 444.
 
-To bring the stack up on a different domain, copy `.env` and edit the `SITE_*`
-lines. `--env-file` replaces `.env` rather than layering on top of it, so the
-copy needs `DATA_DIR` too.
+Because the certbot lineage is named after `SITE_DOMAIN` too, a domain change is
+also a new certificate: certbot names a lineage once, at issuance, and renaming
+one means re-issuing it. See [Initialize certificate](#initialize-certificate).
+
+To bring the stack up on a different domain, copy `.env` and edit `SITE_DOMAIN`.
+`--env-file` replaces `.env` rather than layering on top of it, so the copy
+needs `DATA_DIR` too.
 
 ```
 $ cp .env .env.local    # .env.local is gitignored
@@ -36,9 +37,8 @@ $ $EDITOR .env.local
 $ docker compose --env-file .env.local up -d --remove-orphans
 ```
 
-A new domain still needs DNS pointing at the droplet and a certificate of its
-own — see [Initialize certificate](#initialize-certificate) — but no file in
-this repo has to change for it.
+A new domain still needs DNS pointing at the droplet, but no file in this repo
+has to change for it.
 
 The envsubst step is filtered to variables matching `^SITE_`, so nginx's own
 `$host`, `$request_uri` and `$http_upgrade` pass through the templates
@@ -100,14 +100,13 @@ the stack up and issue the certificate.
 ```
 $ sudo cp data/certbot/conf/options-ssl-nginx.conf data/certbot/conf/ssl-dhparams.pem /mnt/thevenin_data/certbot/conf/
 $ docker compose up -d
-$ docker compose run --rm --entrypoint sh certbot -c 'certbot certonly --webroot --webroot-path /var/www/certbot/ --cert-name "$SITE_CERT_NAME" -d "$SITE_DOMAIN"'
+$ docker compose run --rm --entrypoint sh certbot -c 'certbot certonly --webroot --webroot-path /var/www/certbot/ --cert-name "$SITE_DOMAIN" -d "$SITE_DOMAIN"'
 $ docker compose restart webserver-secure
 ```
 
-The certbot container gets the same `SITE_*` variables as nginx, so running the
+The certbot container gets the same `SITE_DOMAIN` as nginx, so running the
 command through `sh -c` lets it read the domain out of whichever env file the
-stack was started with instead of repeating it here. Add another `-d <name>` for
-each name in `SITE_ALT_NAMES` that should be on the certificate.
+stack was started with instead of repeating it here.
 
 Between the second and third commands `webserver-secure` restart-loops, because
 the certificate it references does not exist yet. That is expected and harmless:
@@ -122,7 +121,7 @@ without the explicit `restart`. Nothing on `:443` works until issuance completes
 certbot names a lineage from `renewal/<name>.conf`, not from `live/`. With the
 live files gone it can no longer load the old lineage to recognise it as a
 duplicate, but the renewal conf still blocks reuse of the name — so it issues
-into `live/<name>-0001/`, which `SITE_CERT_NAME` does not point at, and nginx
+into `live/<name>-0001/`, which `SITE_DOMAIN` does not point at, and nginx
 serves the stale certificate with no obvious error.
 
 To remove a lineage, use certbot, which clears the renewal conf, archive and
@@ -151,8 +150,8 @@ $ docker compose run --rm certbot renew
 `.env.dev` points `DATA_DIR` at `./data`, which already contains
 `options-ssl-nginx.conf` and `ssl-dhparams.pem` — two of the four files
 `templates-secure/` needs. The certificate and key are gitignored, so generate a
-self-signed pair once per checkout. `.env.dev` sets `SITE_DOMAIN` and
-`SITE_CERT_NAME` to `localhost`, so that is the lineage directory to create:
+self-signed pair once per checkout. `.env.dev` sets `SITE_DOMAIN` to
+`localhost`, so that is the lineage directory to create:
 
 ```
 $ mkdir -p data/certbot/conf/live/localhost
@@ -168,4 +167,4 @@ locally. Nothing generates this for you — production gets a real certificate
 from certbot, so the self-signed pair exists only for local dev.
 
 If you point `.env.dev` at some other name, create the lineage directory under
-whatever `SITE_CERT_NAME` says and pass the same name to `-subj '/CN=...'`.
+whatever `SITE_DOMAIN` says and pass the same name to `-subj '/CN=...'`.

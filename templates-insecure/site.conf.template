@@ -1,6 +1,6 @@
 server {
     listen 80;
-    server_name ${SITE_DOMAIN} ${SITE_ALT_NAMES} stage.${SITE_DOMAIN};
+    server_name ${SITE_DOMAIN} stage.${SITE_DOMAIN};
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;

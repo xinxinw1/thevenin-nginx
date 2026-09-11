@@ -1,18 +1,16 @@
 # Every nginx server_name, the certificate path and phpmyadmin's absolute URI
-# come from SITE_* instead of being hard-coded, so the same checkout can serve
-# xin-xin.me, dev.xin-xin.me, xin-xin-dev.me or localhost. Set them in .env (or
-# in an alternate file passed with `docker compose --env-file`).
+# come from SITE_DOMAIN instead of being hard-coded, so the same checkout can
+# serve new.xin-xin.me, dev.xin-xin.me, xin-xin-dev.me or localhost. Set it in
+# .env (or in an alternate file passed with `docker compose --env-file`).
 x-site-env: &site-env
   # The nginx image renders /etc/nginx/templates/*.template into
   # /etc/nginx/conf.d at startup, substituting environment variables. The filter
   # keeps envsubst to SITE_* so nginx's own $host, $request_uri and friends
   # survive into the generated config untouched.
   NGINX_ENVSUBST_FILTER: "^SITE_"
+  # Also the certbot lineage name, i.e. the directory under certbot/conf/live
+  # holding fullchain.pem and privkey.pem.
   SITE_DOMAIN: ${SITE_DOMAIN:?set SITE_DOMAIN in .env}
-  SITE_ALT_NAMES: ${SITE_ALT_NAMES:-}
-  # certbot lineage name, i.e. the directory under certbot/conf/live holding
-  # fullchain.pem and privkey.pem. Usually the same as the domain.
-  SITE_CERT_NAME: ${SITE_CERT_NAME:-${SITE_DOMAIN}}
 
 services:
   webserver-insecure:

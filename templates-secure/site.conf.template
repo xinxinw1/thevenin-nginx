@@ -1,9 +1,9 @@
 server {
     listen 443 ssl;
-    server_name ${SITE_DOMAIN} ${SITE_ALT_NAMES};
+    server_name ${SITE_DOMAIN};
 
-    ssl_certificate /etc/letsencrypt/live/${SITE_CERT_NAME}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${SITE_CERT_NAME}/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/${SITE_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${SITE_DOMAIN}/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
@@ -63,8 +63,8 @@ server {
     listen 443 ssl;
     server_name stage.${SITE_DOMAIN};
 
-    ssl_certificate /etc/letsencrypt/live/${SITE_CERT_NAME}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${SITE_CERT_NAME}/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/${SITE_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${SITE_DOMAIN}/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
