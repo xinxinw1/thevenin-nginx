@@ -1,4 +1,29 @@
+# The catch-all for :80: everything that is not one of the names in site.conf
+# lands here, as does any request that arrives with no Host header at all (a
+# server block with no server_name matches the empty name). That is what a load
+# balancer health check looks like -- it probes the droplet by IP, so it has an
+# address for a Host header, some internal hostname, or nothing -- so the health
+# check lives here rather than on a named vhost.
+#
+# This file also has to exist to overwrite the "Welcome to nginx!" vhost that
+# ships in the nginx image at /etc/nginx/conf.d/default.conf, which is the path
+# this renders to. The entrypoint renders templates alongside whatever conf.d
+# already holds rather than clearing it first, so deleting this file would put
+# the stock vhost -- and its `server_name localhost` -- back in front of the
+# whole site under .env.dev.
 server {
+    listen 80 default_server;
     access_log off;
-    return 444;
+
+    location = /healthcheck {
+        default_type text/plain;
+        return 200 "ok";
+    }
+
+    # Not a server-level `return`, which is what this block used to be: a
+    # `return` there runs in the server rewrite phase, before nginx has even
+    # picked a location, so it would answer /healthcheck with a 444 too.
+    location / {
+        return 444;
+    }
 }
