@@ -10,3 +10,6 @@ data/certbot/conf/renewal
 data/certbot/www
 
 .env.secrets
+
+# Ad-hoc environment files, e.g. a throwaway domain to test against.
+.env.local

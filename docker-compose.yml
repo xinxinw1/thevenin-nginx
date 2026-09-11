@@ -1,23 +1,45 @@
+# Every nginx server_name, the certificate path and phpmyadmin's absolute URI
+# come from SITE_DOMAIN instead of being hard-coded, so the same checkout can
+# serve new.xin-xin.me, dev.xin-xin.me, xin-xin-dev.me or localhost. Set it in
+# .env (or in an alternate file passed with `docker compose --env-file`).
+x-site-env: &site-env
+  # The nginx image renders /etc/nginx/templates/*.template into
+  # /etc/nginx/conf.d at startup, substituting environment variables. The filter
+  # keeps envsubst to SITE_* so nginx's own $host, $request_uri and friends
+  # survive into the generated config untouched.
+  NGINX_ENVSUBST_FILTER: "^SITE_"
+  # Also the certbot lineage name, i.e. the directory under certbot/conf/live
+  # holding fullchain.pem and privkey.pem.
+  SITE_DOMAIN: ${SITE_DOMAIN:?set SITE_DOMAIN in .env}
+
 services:
   webserver-insecure:
     image: nginx
     ports:
       - 80:80
     restart: unless-stopped
+    environment: *site-env
     volumes:
-      - ./conf-insecure/:/etc/nginx/conf.d/:ro
+      - ./templates-insecure/:/etc/nginx/templates/:ro
       - ${DATA_DIR}/certbot/www/:/var/www/certbot/:ro
   webserver-secure:
     image: nginx
     ports:
       - 443:443
     restart: unless-stopped
+    environment: *site-env
     volumes:
-      - ./conf-secure/:/etc/nginx/conf.d/:ro
+      - ./templates-secure/:/etc/nginx/templates/:ro
       - ${DATA_DIR}/certbot/conf/:/etc/letsencrypt/:ro
-    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    # Reload every 6h so a renewed certificate gets picked up without a restart.
+    # The image only renders the templates when its entrypoint is handed `nginx`
+    # as the first argument, and a custom command hands it `/bin/sh` instead --
+    # hence the explicit `/docker-entrypoint.sh nginx` rather than a bare
+    # `nginx`, which would start the server with no conf.d at all.
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & exec /docker-entrypoint.sh nginx -g \"daemon off;\"'"
   certbot: &certbot
     image: certbot/certbot
+    environment: *site-env
     volumes:
       - ${DATA_DIR}/certbot/www/:/var/www/certbot/:rw
       - ${DATA_DIR}/certbot/conf/:/etc/letsencrypt/:rw
@@ -51,4 +73,4 @@ services:
     links:
       - mysql:db
     environment:
-      - PMA_ABSOLUTE_URI=https://xin-xin.me/phpmyadmin/
+      - PMA_ABSOLUTE_URI=https://${SITE_DOMAIN}/phpmyadmin/
