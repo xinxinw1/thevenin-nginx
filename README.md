@@ -23,7 +23,25 @@ So the same checkout serves `new.xin-xin.me`, `xin-xin-test.me` or `localhost`
 depending only on the env file it is started with. The main vhost
 answers on exactly that one name — no `www.` alias, no second spelling — and
 anything else reaching the droplet falls through to `default.conf` and is
-dropped with a 444.
+dropped with a 444 — with one deliberate exception, the health check below.
+
+## Health check
+
+`GET /healthcheck` on `:80` returns `200` with a body of exactly `ok`:
+
+```
+$ curl -i http://<droplet-ip>/healthcheck
+```
+
+It lives on `default.conf`, the catch-all, rather than on a named vhost,
+because that is where a load balancer's probe lands: it reaches the droplet by
+IP, so it arrives with an address for a `Host` header, some internal hostname,
+or no `Host` header at all, and the catch-all answers to all three. The named
+vhosts are unaffected and still answer on `SITE_DOMAIN` alone — which does mean
+a probe sent *with* `Host: $SITE_DOMAIN` gets the 301 to `https://` instead, so
+point the health check at the IP.
+
+`:443` has no equivalent: a probe by IP could not match the certificate anyway.
 
 Because the certbot lineage is named after `SITE_DOMAIN` too, a domain change is
 also a new certificate: certbot names a lineage once, at issuance, and renaming
