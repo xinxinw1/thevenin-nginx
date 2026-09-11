@@ -20,8 +20,8 @@ start, substituting environment variables. One variable drives all of it:
 | `SITE_DOMAIN` | The single name this instance answers on. `server_name`, the `unsafe.` and `stage.` vhosts, the certbot lineage under `certbot/conf/live` and phpmyadmin's absolute URI are all derived from it. |
 
 So the same checkout serves `new.xin-xin.me`, `xin-xin-test.me` or `localhost`
-depending only on the env file it is started with. The main vhost
-answers on exactly that one name — no `www.` alias, no second spelling — and
+depending only on the env file it is started with. The main vhost answers on
+exactly that one name — no `www.` alias, no second spelling — and
 anything else reaching the droplet falls through to `default.conf` and is
 dropped with a 444 — with one deliberate exception, the health check below.
 
