@@ -1,9 +1,9 @@
 server {
     listen 443 ssl;
-    server_name xin-xin.me www.xin-xin.me new.xin-xin.me;
+    server_name ${SITE_DOMAIN} ${SITE_ALT_NAMES};
 
-    ssl_certificate /etc/letsencrypt/live/new.xin-xin.me/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/new.xin-xin.me/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/${SITE_CERT_NAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${SITE_CERT_NAME}/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
@@ -55,15 +55,16 @@ server {
 }
 
 # TODO: dead vhost. Every location below proxies to 127.0.0.1, which inside this
-# container is the container itself, so stage.xin-xin.me serves nothing but 502s
-# (conf-insecure still redirects it to https). Same fix as the routes above:
-# bring the backends up as compose services and proxy to their service names.
+# container is the container itself, so the stage. subdomain serves nothing but
+# 502s (templates-insecure still redirects it to https). Same fix as the routes
+# above: bring the backends up as compose services and proxy to their service
+# names.
 server {
     listen 443 ssl;
-    server_name stage.xin-xin.me;
+    server_name stage.${SITE_DOMAIN};
 
-    ssl_certificate /etc/letsencrypt/live/new.xin-xin.me/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/new.xin-xin.me/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/${SITE_CERT_NAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${SITE_CERT_NAME}/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
