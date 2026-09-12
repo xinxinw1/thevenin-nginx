@@ -1,6 +1,10 @@
 data/text-edit-data
 data/mysql
 
+# xin-xin.me's gitignored assets, mounted into main-website from the data
+# directory because a build from a clone does not have them.
+data/xin-xin-me
+
 # Certbot key material. options-ssl-nginx.conf and ssl-dhparams.pem are public
 # certbot defaults and stay committed so local dev works out of the box.
 data/certbot/conf/live

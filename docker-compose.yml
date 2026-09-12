@@ -52,11 +52,28 @@ services:
     profiles: []
     restart: unless-stopped
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+  # Built from the checkout beside this one rather than pulled from Docker Hub.
+  # ~/setup.sh clones xin-xin.me and text-edit into the same ~/git as this repo,
+  # so ../ resolves on the droplet and in a local checkout alike. The context
+  # has to be a recursive clone: xin-xin.me carries its static/code/* demos as
+  # submodules and its Dockerfile COPYs the whole tree, so an un-inited
+  # submodule builds an image with an empty directory rather than failing.
   main-website:
-    image: xinxinw/xin-xin.me
+    build: ../xin-xin.me
     restart: unless-stopped
+    volumes:
+      # All three are gitignored over in xin-xin.me, so a build from a clone has
+      # none of them -- the Docker Hub image only carried them because it was
+      # built from a working copy that did. They live on the share instead of in
+      # the image so a rebuild cannot drop them. email-config.json is a
+      # single-file mount: if the host path is missing docker creates a
+      # directory there, which is not what require() wants, so ~/setup.sh seeds
+      # the file.
+      - ${DATA_DIR}/xin-xin-me/music/:/usr/src/app/static/music/:ro
+      - ${DATA_DIR}/xin-xin-me/files/:/usr/src/app/static/files/:ro
+      - ${DATA_DIR}/xin-xin-me/email-config.json:/usr/src/app/email-config.json:ro
   text-edit:
-    image: xinxinw/text-edit
+    build: ../text-edit
     restart: unless-stopped
     volumes:
       - ${DATA_DIR}/text-edit-data/:/var/www/html/data/:rw
