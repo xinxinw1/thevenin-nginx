@@ -102,14 +102,32 @@ contact form answers "Email not configured".
 ## Update and start server
 
 ```
-$ docker compose up -d --build --pull always --remove-orphans
+$ ./deploy.sh
 ```
 
-`up` takes `--pull`, so this needs no separate `pull` pass. `--pull always`
+That is the whole deploy: pull the sibling app checkouts, run this, done. On a
+droplet `~/deploy.sh` finds it without a `cd`, and `~/setup.sh` runs it
+as its last step. It does two things:
+
+```
+$ docker compose up -d --build --pull always --remove-orphans
+$ docker compose restart webserver-insecure webserver-secure
+```
+
+`up` takes `--pull`, so the first needs no separate `pull` pass. `--pull always`
 refreshes the registry images; `main-website` and `text-edit` have no registry
 image to pull, and compose builds those rather than failing on them. `--build`
-rebuilds both from the sibling checkouts, so pulling those repos and re-running
-this is the whole deploy. A no-change rebuild is cheap — it is all layer cache.
+rebuilds both from the sibling checkouts. A no-change rebuild is cheap — it is
+all layer cache.
+
+The restart is what keeps the site up. nginx resolves the hostname in a
+`proxy_pass` once, at config load, and caches that address for the life of the
+worker — the same load-time resolution that makes an unresolvable name fail
+config load with "host not found in upstream". A rebuild gives `main-website` and
+`text-edit` new IPs on the compose network, and nothing about that recreates the
+webservers, so without the restart they go on dialing the old addresses and
+answer 502. `webserver-secure` recovers on its own within 6h from its reload
+loop; `webserver-insecure` never does.
 
 ### First-time initialization
 
@@ -124,11 +142,11 @@ Then go to `https://<SITE_DOMAIN>/phpmyadmin` and log in as root.
 ### Locally
 
 ```
-$ docker compose --env-file .env.dev up -d --build --remove-orphans
+$ ./deploy.sh --env-file .env.dev
 ```
 
-`--env-file` is a `docker compose` flag, not an `up` flag, so it goes before the
-subcommand.
+Arguments go to `docker compose` ahead of the subcommand, which is where
+`--env-file` has to be: it is a `docker compose` flag, not an `up` flag.
 
 ## Restart all services (update nginx config)
 
@@ -137,8 +155,10 @@ $ docker compose restart
 ```
 
 A restart re-runs the nginx entrypoint, so edits to `templates-insecure/` and
-`templates-secure/` are picked up. Changes to the `SITE_*` variables are not: an
-environment change needs the containers recreated.
+`templates-secure/` are picked up — by `./deploy.sh` too, which restarts
+both webservers. Changes to the `SITE_*` variables are not: those are baked into
+a container's environment when it is created, so an environment change needs the
+containers recreated.
 
 ```
 $ docker compose up -d --force-recreate webserver-insecure webserver-secure
