@@ -4,9 +4,10 @@ Runs on the `thevenin` droplet, provisioned from
 [cloud-config](https://github.com/xinxinw1/cloud-config)'s `thevenin/cloud-init.yaml`,
 and on `thevenin-dev` from `thevenin-dev/cloud-init.yaml` — the same stack on
 `xin-xin-test.me`, backed by its own NFS share. That cloud-init installs Docker
-and drops a `~/setup.sh` that mounts the share, clones this repo, writes a
-`.env` for the host it is on, and brings the stack up. The commands below are
-for day-to-day operation and for recovering by hand.
+and drops a `~/setup.sh` that mounts the share, clones this repo along with
+`xin-xin.me` and `text-edit` beside it, writes a `.env` for the host it is on,
+and builds and brings the stack up. The commands below are for day-to-day
+operation and for recovering by hand.
 
 ## Which domain it runs on
 
@@ -69,12 +70,46 @@ The envsubst step is filtered to variables matching `^SITE_`, so nginx's own
 untouched. Adding a new variable means naming it `SITE_*` and adding it to
 `x-site-env` in `docker-compose.yml`.
 
+## Application images
+
+`main-website` and `text-edit` are not pulled from a registry. They are built
+from the two application repos, which have to sit **beside this checkout**:
+
+```
+~/git/
+├── thevenin-nginx/   <- this repo
+├── xin-xin.me/       <- built as main-website, listens on 8080
+└── text-edit/        <- built as text-edit, listens on 80
+```
+
+`docker-compose.yml` names them as `../xin-xin.me` and `../text-edit`, relative
+to this file, so the layout is the whole contract — there is no variable to
+point somewhere else. On a droplet `~/setup.sh` clones all three into `~/git`;
+everywhere else, clone them yourself.
+
+Clone `xin-xin.me` with `--recurse-submodules`. Its `static/code/*` demos are
+submodules and its Dockerfile copies the working tree, so a non-recursive clone
+builds an image with empty directories instead of failing.
+
+Three things `xin-xin.me` keeps out of git — `static/music`, `static/files` and
+`email-config.json` — are therefore absent from a build. The compose file mounts
+them from `${DATA_DIR}/xin-xin-me/` instead, so they live on the share rather
+than in an image and survive every rebuild. `~/setup.sh` creates the two
+directories and seeds an empty `email-config.json`; filling them in is a manual
+copy onto the share. Until it happens `/music/*` and `/files/*` are 404 and the
+contact form answers "Email not configured".
+
 ## Update and start server
 
 ```
-$ docker compose pull
-$ docker compose up -d --remove-orphans
+$ docker compose pull --ignore-buildable
+$ docker compose up -d --build --remove-orphans
 ```
+
+`--ignore-buildable` skips `main-website` and `text-edit`, which have no
+registry image to pull; without it `pull` fails on them. `--build` rebuilds both
+from the sibling checkouts, so pulling those repos and re-running this is the
+whole deploy. A no-change rebuild is cheap — it is all layer cache.
 
 ### First-time initialization
 
@@ -89,7 +124,7 @@ Then go to `https://<SITE_DOMAIN>/phpmyadmin` and log in as root.
 ### Locally
 
 ```
-$ docker compose --env-file .env.dev up -d --remove-orphans
+$ docker compose --env-file .env.dev up -d --build --remove-orphans
 ```
 
 `--env-file` is a `docker compose` flag, not an `up` flag, so it goes before the
@@ -171,6 +206,20 @@ $ docker compose run --rm certbot renew
 ```
 
 ## Set up local env
+
+First put the two application repos beside this one and create the asset paths
+the compose file mounts into `main-website`:
+
+```
+$ git clone --recurse-submodules https://github.com/xinxinw1/xin-xin.me.git ../xin-xin.me
+$ git clone https://github.com/xinxinw1/text-edit.git ../text-edit
+$ mkdir -p data/xin-xin-me/music data/xin-xin-me/files
+$ echo '{}' > data/xin-xin-me/email-config.json
+```
+
+The `echo` is load-bearing. `email-config.json` is a single-file bind mount, and
+docker creates a *directory* at a host path that does not exist yet — which is
+not something `require()` can load.
 
 `.env.dev` points `DATA_DIR` at `./data`, which already contains
 `options-ssl-nginx.conf` and `ssl-dhparams.pem` — two of the four files
