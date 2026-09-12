@@ -102,14 +102,14 @@ contact form answers "Email not configured".
 ## Update and start server
 
 ```
-$ docker compose pull --ignore-buildable
-$ docker compose up -d --build --remove-orphans
+$ docker compose up -d --build --pull always --remove-orphans
 ```
 
-`--ignore-buildable` skips `main-website` and `text-edit`, which have no
-registry image to pull; without it `pull` fails on them. `--build` rebuilds both
-from the sibling checkouts, so pulling those repos and re-running this is the
-whole deploy. A no-change rebuild is cheap — it is all layer cache.
+`up` takes `--pull`, so this needs no separate `pull` pass. `--pull always`
+refreshes the registry images; `main-website` and `text-edit` have no registry
+image to pull, and compose builds those rather than failing on them. `--build`
+rebuilds both from the sibling checkouts, so pulling those repos and re-running
+this is the whole deploy. A no-change rebuild is cheap — it is all layer cache.
 
 ### First-time initialization
 
