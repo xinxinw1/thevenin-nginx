@@ -26,10 +26,19 @@ set -o pipefail
 #
 #   docker compose up -d --force-recreate webserver-insecure webserver-secure
 #
-# Arguments are passed to docker compose ahead of the subcommand, so a checkout
-# without a .env can hand over the env file the stack needs:
+# Arguments exist for one thing: handing compose an env file. SITE_DOMAIN and
+# DATA_DIR are inputs this repo ships no values for, and docker-compose.yml reads
+# SITE_DOMAIN with :? -- so a checkout with no .env fails both commands below
+# outright, rather than coming up with something wrong. A droplet has the .env
+# ~/setup.sh generates and needs nothing; anywhere else the values come from a
+# file named explicitly:
 #
 #   ./deploy.sh --env-file .env.dev
+#
+# They go ahead of the subcommand because --env-file is a docker compose flag,
+# not an up or restart flag, and they go to both commands because compose parses
+# the project afresh for each one -- an env file given only to up would leave the
+# restart failing on the same unset variable.
 cd "$(dirname "$0")"
 
 echo "=== Building and starting the stack ==="
