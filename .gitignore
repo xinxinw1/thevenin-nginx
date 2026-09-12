@@ -13,3 +13,8 @@ data/certbot/www
 
 # Ad-hoc environment files, e.g. a throwaway domain to test against.
 .env.local
+
+# The domain and data directory are inputs to this stack, not values it ships.
+# On a droplet ~/setup.sh generates this file from the host type; see
+# .env.example.
+.env

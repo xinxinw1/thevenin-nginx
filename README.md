@@ -1,10 +1,12 @@
 # Xin-Xin's server
 
 Runs on the `thevenin` droplet, provisioned from
-[cloud-config](https://github.com/xinxinw1/cloud-config)'s `thevenin/cloud-init.yaml`.
-That cloud-init installs Docker and drops a `~/setup.sh` that mounts the
-`thevenin-data` volume, clones this repo, and brings the stack up. The commands
-below are for day-to-day operation and for recovering by hand.
+[cloud-config](https://github.com/xinxinw1/cloud-config)'s `thevenin/cloud-init.yaml`,
+and on `thevenin-dev` from `thevenin-dev/cloud-init.yaml` — the same stack on
+`xin-xin-test.me`, backed by its own NFS share. That cloud-init installs Docker
+and drops a `~/setup.sh` that mounts the share, clones this repo, writes a
+`.env` for the host it is on, and brings the stack up. The commands below are
+for day-to-day operation and for recovering by hand.
 
 ## Which domain it runs on
 
@@ -17,9 +19,9 @@ start, substituting environment variables. One variable drives all of it:
 | --- | --- |
 | `SITE_DOMAIN` | The single name this instance answers on. `server_name`, the `unsafe.` and `stage.` vhosts, the certbot lineage under `certbot/conf/live` and phpmyadmin's absolute URI are all derived from it. |
 
-So the same checkout serves `new.xin-xin.me`, `dev.xin-xin.me`, `xin-xin-dev.me`
-or `localhost` depending only on the env file it is started with. The main vhost
-answers on exactly that one name — no `www.` alias, no second spelling — and
+So the same checkout serves `new.xin-xin.me`, `xin-xin-test.me` or `localhost`
+depending only on the env file it is started with. The main vhost answers on
+exactly that one name — no `www.` alias, no second spelling — and
 anything else reaching the droplet falls through to `default.conf` and is
 dropped with a 444 — with one deliberate exception, the health check below.
 
@@ -45,12 +47,16 @@ Because the certbot lineage is named after `SITE_DOMAIN` too, a domain change is
 also a new certificate: certbot names a lineage once, at issuance, and renaming
 one means re-issuing it. See [Initialize certificate](#initialize-certificate).
 
-To bring the stack up on a different domain, copy `.env` and edit `SITE_DOMAIN`.
-`--env-file` replaces `.env` rather than layering on top of it, so the copy
-needs `DATA_DIR` too.
+Neither `SITE_DOMAIN` nor `DATA_DIR` has a value in this repo — they are inputs
+to the stack, not properties of it. On a droplet `~/setup.sh` writes a `.env`
+holding the pair its host type calls for, so `docker compose` there needs no
+flags. Everywhere else, pass a file explicitly or copy `.env.example` to `.env`.
+
+`--env-file` replaces `.env` rather than layering on top of it, so any such file
+needs both variables.
 
 ```
-$ cp .env .env.local    # .env.local is gitignored
+$ cp .env.example .env.local    # .env.local is gitignored
 $ $EDITOR .env.local
 $ docker compose --env-file .env.local up -d --remove-orphans
 ```
@@ -73,7 +79,8 @@ $ docker compose up -d --remove-orphans
 ### First-time initialization
 
 Copy `.env.secrets.example` to `.env.secrets` and set a mysql root password
-before the first `docker compose up`. It is only applied while the mysql data
+before the first `docker compose up`. (`~/setup.sh` does this for you on a
+droplet, alongside the `.env` it generates.) It is only applied while the mysql data
 directory is still empty — on a volume that already holds a database, mysql
 keeps its existing password and this file is ignored.
 

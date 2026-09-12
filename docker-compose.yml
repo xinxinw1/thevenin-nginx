@@ -1,7 +1,9 @@
 # Every nginx server_name, the certificate path and phpmyadmin's absolute URI
 # come from SITE_DOMAIN instead of being hard-coded, so the same checkout can
-# serve new.xin-xin.me, dev.xin-xin.me, xin-xin-dev.me or localhost. Set it in
-# .env (or in an alternate file passed with `docker compose --env-file`).
+# serve new.xin-xin.me, xin-xin-test.me or localhost. It and DATA_DIR are inputs
+# this repo does not answer for: on a droplet ~/setup.sh writes a .env from the
+# host type, and otherwise they come from a file passed with
+# `docker compose --env-file` (.env.dev for localhost) or from .env.example.
 x-site-env: &site-env
   # The nginx image renders /etc/nginx/templates/*.template into
   # /etc/nginx/conf.d at startup, substituting environment variables. The filter
@@ -10,7 +12,7 @@ x-site-env: &site-env
   NGINX_ENVSUBST_FILTER: "^SITE_"
   # Also the certbot lineage name, i.e. the directory under certbot/conf/live
   # holding fullchain.pem and privkey.pem.
-  SITE_DOMAIN: ${SITE_DOMAIN:?set SITE_DOMAIN in .env}
+  SITE_DOMAIN: ${SITE_DOMAIN:?no .env -- run ~/setup.sh, or copy .env.example}
 
 services:
   webserver-insecure:
